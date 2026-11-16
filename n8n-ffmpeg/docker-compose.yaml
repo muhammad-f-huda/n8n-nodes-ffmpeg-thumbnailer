@@ -35,7 +35,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: n8nio/n8n:2.22.3-ffmpeg
+    image: n8nio/n8n:2.47.7-ffmpeg
     labels:
       icon: https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/N8n/icon.svg
     ports:
@@ -161,7 +161,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: n8nio/n8n:2.22.3-ffmpeg
+    image: n8nio/n8n:2.47.7-ffmpeg
     labels:
       icon: https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/N8n/icon.svg
     restart: unless-stopped
@@ -216,11 +216,7 @@ x-casaos:
   port_map: "5678"
   release_notes:
     en_US: >-
-      - n8n 2.22.3 surfaces SSO claims and role mapping diagnostics.
-
-      - The n8nio/n8n:2.22.3 Docker image tag was published on 2026-05-25.
-
-      - This advances the app from the 1.123.x image line to the current 2.22.x release line.
+      - Updated n8n image to 2.47.7 (published 2026-11-13).
   repo: https://github.com/n8n-io/n8n
   scheme: http
   screenshot_link:
@@ -236,6 +232,6 @@ x-casaos:
   title:
     custom: n8n
     en_US: n8n
-  update_at: 2026-05-25T00:00:00Z
-  version: 2.22.3
+  update_at: 2026-11-13T00:00:00Z
+  version: 2.47.7
   website: https://n8n.io

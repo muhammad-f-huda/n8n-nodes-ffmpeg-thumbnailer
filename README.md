@@ -43,15 +43,22 @@ Use statically linked binaries instead:
 ```dockerfile
 FROM mwader/static-ffmpeg:8.1.2 AS ffmpeg
 
-FROM n8nio/n8n:2.22.3
+FROM n8nio/n8n:2.47.7
 
 USER root
 COPY --from=ffmpeg /ffmpeg /ffprobe /usr/local/bin/
 USER node
 ```
 
-A ready-to-use version of this Dockerfile lives in
-`./n8n-ffmpeg`.
+A ready-to-use version of this Dockerfile and a `docker-compose.yaml` live in
+`./n8n-ffmpeg`. Build the image and start n8n with:
+
+```bash
+cd n8n-ffmpeg
+docker compose up -d --build
+```
+
+n8n is then available at <http://localhost:5678>. Stop it with `docker compose down`.
 
 ### Verify
 
