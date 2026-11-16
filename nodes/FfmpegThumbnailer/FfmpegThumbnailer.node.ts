@@ -131,7 +131,7 @@ export class FfmpegThumbnailer implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'FFmpeg Thumbnailer',
 		name: 'ffmpegThumbnailer',
-		icon: 'fa:file-video',
+		icon: 'file:ffmpegThumbnailer.svg',
 		group: ['transform'],
 		version: 1,
 		description: 'Generate a thumbnail image from a video using FFmpeg',

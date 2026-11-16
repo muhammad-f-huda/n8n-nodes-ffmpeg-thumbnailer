@@ -11,7 +11,7 @@
 	"license": "MIT",
 	"main": "dist/nodes/FfmpegThumbnailer/FfmpegThumbnailer.node.js",
 	"scripts": {
-		"build": "tsc",
+		"build": "tsc && cp nodes/FfmpegThumbnailer/*.svg dist/nodes/FfmpegThumbnailer/",
 		"dev": "tsc --watch",
 		"test": "npm run build && node test/smoke.js"
 	},
