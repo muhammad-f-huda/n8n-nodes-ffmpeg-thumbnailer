@@ -51,7 +51,7 @@ USER node
 ```
 
 A ready-to-use version of this Dockerfile lives in
-`~/Projects/docker/n8n-ffmpeg`.
+`./n8n-ffmpeg`.
 
 ### Verify
 

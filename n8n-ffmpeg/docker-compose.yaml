@@ -1,0 +1,241 @@
+name: n8n
+services:
+  n8n-main:
+    cpu_shares: 90
+    command: []
+    container_name: n8n-main
+    depends_on:
+      n8n-postgres:
+        condition: service_healthy
+        required: true
+      n8n-redis:
+        condition: service_healthy
+        required: true
+    deploy:
+      resources:
+        limits:
+          memory: 7818M
+        reservations:
+          memory: "335544320"
+    environment:
+      - DB_POSTGRESDB_DATABASE=n8n_database
+      - DB_POSTGRESDB_HOST=n8n-postgres
+      - DB_POSTGRESDB_PASSWORD=changeme
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_USER=n8n_user
+      - DB_TYPE=postgresdb
+      - EXECUTIONS_MODE=queue
+      - N8N_ENCRYPTION_KEY=replace-with-random-64-char
+      - N8N_SECURE_COOKIE=false
+      - NODES_EXCLUDE=[]
+      - QUEUE_BULL_REDIS_HOST=n8n-redis
+      - QUEUE_BULL_REDIS_PORT=6379
+      - TZ=Asia/Jakarta
+    hostname: n8n-main
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: n8nio/n8n:2.22.3-ffmpeg
+    labels:
+      icon: https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/N8n/icon.svg
+    ports:
+      - target: 5678
+        published: "5678"
+        protocol: tcp
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /DATA/AppData/n8n
+        target: /home/node/.n8n
+      - type: bind
+        source: /tmp/assets
+        target: /tmp/assets
+    devices: []
+    cap_add: []
+    networks:
+      - n8n-net
+    privileged: false
+  n8n-postgres:
+    cpu_shares: 90
+    command: []
+    container_name: n8n-postgres
+    deploy:
+      resources:
+        limits:
+          memory: 7818M
+    environment:
+      - POSTGRES_DB=n8n_database
+      - POSTGRES_PASSWORD=changeme
+      - POSTGRES_USER=n8n_user
+    hostname: n8n-postgres
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U n8n_user -d n8n_database
+      timeout: 5s
+      interval: 5s
+      retries: 5
+    image: postgres:16-alpine
+    labels:
+      icon: https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/N8n/icon.svg
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /DATA/AppData/n8n/postgres_data
+        target: /var/lib/postgresql/data
+        bind:
+          create_host_path: true
+    ports: []
+    devices: []
+    cap_add: []
+    networks:
+      - n8n-net
+    privileged: false
+  n8n-redis:
+    cpu_shares: 90
+    command:
+      - redis-server
+      - --appendonly
+      - yes
+    container_name: n8n-redis
+    deploy:
+      resources:
+        limits:
+          memory: 7818M
+    hostname: n8n-redis
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      timeout: 5s
+      interval: 5s
+      retries: 5
+    image: redis:7-alpine
+    labels:
+      icon: https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/N8n/icon.svg
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /DATA/AppData/n8n/redis_data
+        target: /data
+        bind:
+          create_host_path: true
+    ports: []
+    devices: []
+    cap_add: []
+    environment: []
+    networks:
+      - n8n-net
+    privileged: false
+  n8n-worker:
+    cpu_shares: 90
+    command:
+      - worker
+    container_name: n8n-worker
+    depends_on:
+      n8n-postgres:
+        condition: service_healthy
+        required: true
+      n8n-redis:
+        condition: service_healthy
+        required: true
+    deploy:
+      resources:
+        limits:
+          memory: 7818M
+    environment:
+      - DB_POSTGRESDB_DATABASE=n8n_database
+      - DB_POSTGRESDB_HOST=n8n-postgres
+      - DB_POSTGRESDB_PASSWORD=changeme
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_USER=n8n_user
+      - DB_TYPE=postgresdb
+      - EXECUTIONS_MODE=queue
+      - N8N_ENCRYPTION_KEY=replace-with-random-64-char
+      - NODES_EXCLUDE=[]
+      - QUEUE_BULL_REDIS_HOST=n8n-redis
+      - QUEUE_BULL_REDIS_PORT=6379
+      - TZ=Asia/Jakarta
+    hostname: n8n-worker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: n8nio/n8n:2.22.3-ffmpeg
+    labels:
+      icon: https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/N8n/icon.svg
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /DATA/AppData/n8n/custom
+        target: /home/node/.n8n/custom
+      - type: bind
+        source: /DATA/AppData/n8n/nodes
+        target: /home/node/.n8n/nodes
+      - type: bind
+        source: /DATA/AppData/n8n/binaryData
+        target: /home/node/.n8n/binaryData
+      - type: bind
+        source: /tmp/assets
+        target: /tmp/assets
+    ports: []
+    devices: []
+    cap_add: []
+    networks:
+      - n8n-net
+    privileged: false
+networks:
+  n8n-net:
+    name: n8n_n8n-net
+    driver: bridge
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  author: YoussofKhawaja
+  category: Productivity
+  description:
+    en_US: >
+      n8n is a powerful open-source workflow automation and conversational AI
+      platform that blends the flexibility of coding with the simplicity of
+      no-code development, empowering users to create efficient and secure
+      automation workflows. It seamlessly connects any app with an API,
+      leveraging native AI capabilities (like LangChain-based AI agent
+      workflows) to process custom data, ideal for personal task management,
+      team collaboration, or enterprise-grade automation. Its vibrant community
+      offers over 400 integrations and 900+ ready-to-use templates, enabling
+      users to deploy automations quickly.
+  developer: n8n
+  docs: https://docs.n8n.io
+  hostname: ""
+  icon: https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/N8n/icon.svg
+  id: org.icewhale.n8n
+  index: /
+  is_uncontrolled: false
+  main: n8n-main
+  port_map: "5678"
+  release_notes:
+    en_US: >-
+      - n8n 2.22.3 surfaces SSO claims and role mapping diagnostics.
+
+      - The n8nio/n8n:2.22.3 Docker image tag was published on 2026-05-25.
+
+      - This advances the app from the 1.123.x image line to the current 2.22.x release line.
+  repo: https://github.com/n8n-io/n8n
+  scheme: http
+  screenshot_link:
+    - https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/N8n/screenshot-1.png
+    - https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/N8n/screenshot-2.png
+    - https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/N8n/screenshot-3.png
+  store_app_id: n8n
+  support: https://community.n8n.io/
+  tagline:
+    en_US: Workflow automation tool
+  thumbnail: https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/N8n/thumbnail.png
+  tips: {}
+  title:
+    custom: n8n
+    en_US: n8n
+  update_at: 2026-05-25T00:00:00Z
+  version: 2.22.3
+  website: https://n8n.io
