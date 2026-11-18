@@ -191,6 +191,22 @@ async function main() {
 	);
 	console.log('ok: image resize rejects zero dimensions');
 
+	// 11. thumbnail resize mode changes the output geometry
+	out = await run(
+		{ ...base, sourceType: 'filePath', filePath: video, timestampMode: 'firstFrame', outputFormat: 'png', width: 320, height: 100, resizeMode: 'fit', quality: 80 },
+		[{ json: {} }],
+	);
+	const fitSize = pngSize(Buffer.from(out[0].binary.thumbnail.data, 'base64'));
+	assert.strictEqual(fitSize.height, 100);
+	assert.ok(fitSize.width < 320, `fit width should preserve aspect, got ${fitSize.width}`);
+
+	out = await run(
+		{ ...base, sourceType: 'filePath', filePath: video, timestampMode: 'firstFrame', outputFormat: 'png', width: 320, height: 100, resizeMode: 'stretch', quality: 80 },
+		[{ json: {} }],
+	);
+	assert.deepStrictEqual(pngSize(Buffer.from(out[0].binary.thumbnail.data, 'base64')), { width: 320, height: 100 });
+	console.log('ok: thumbnail resize mode fit vs stretch');
+
 	fs.rmSync(tmp, { recursive: true, force: true });
 	console.log('\nall smoke tests passed');}
 

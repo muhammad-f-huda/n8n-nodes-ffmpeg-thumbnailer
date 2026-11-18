@@ -14,6 +14,7 @@ import { runCommand } from '../shared/ffmpeg';
 
 type TimestampMode = 'firstFrame' | 'specificSecond' | 'percentage';
 type OutputFormat = 'jpeg' | 'png';
+type ResizeMode = 'fit' | 'fill' | 'stretch';
 
 const MIME_TYPES: Record<OutputFormat, string> = {
 	jpeg: 'image/jpeg',
@@ -62,6 +63,16 @@ function toQscale(quality: number): number {
 	return Math.max(2, Math.min(31, Math.round(31 - (quality / 100) * 29)));
 }
 
+function scaleFilter(width: number, height: number, mode: ResizeMode): string {
+	const w = width > 0 ? width : -2;
+	const h = height > 0 ? height : -2;
+	if (width > 0 && height > 0) {
+		if (mode === 'fit') return `scale=${w}:${h}:force_original_aspect_ratio=decrease`;
+		if (mode === 'fill') return `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h}`;
+	}
+	return `scale=${w}:${h}`;
+}
+
 function buildArgs(
 	inputPath: string,
 	timestamp: number,
@@ -69,6 +80,7 @@ function buildArgs(
 	width: number,
 	height: number,
 	quality: number,
+	resizeMode: ResizeMode,
 ): string[] {
 	const args = ['-hide_banner', '-loglevel', 'error'];
 	
@@ -77,7 +89,7 @@ function buildArgs(
 	args.push('-i', inputPath, '-frames:v', '1', '-an');
 	
 	if (width > 0 || height > 0) {
-		args.push('-vf', `scale=${width > 0 ? width : -2}:${height > 0 ? height : -2}`);
+		args.push('-vf', scaleFilter(width, height, resizeMode));
 	}
 	
 	if (format === 'jpeg') {
@@ -185,6 +197,18 @@ export class FfmpegThumbnailer implements INodeType {
 				description: 'Thumbnail height in pixels. 0 keeps the source height (scales by width).',
 			},
 			{
+				displayName: 'Resize Mode',
+				name: 'resizeMode',
+				type: 'options',
+				options: [
+					{ name: 'Fit', value: 'fit' },
+					{ name: 'Fill', value: 'fill' },
+					{ name: 'Stretch', value: 'stretch' },
+				],
+				default: 'stretch',
+				description: 'How the frame fits the requested size when both width and height are set',
+			},
+			{
 				displayName: 'Quality',
 				name: 'quality',
 				type: 'number',
@@ -245,6 +269,7 @@ export class FfmpegThumbnailer implements INodeType {
 				const outputFormat = this.getNodeParameter('outputFormat', i) as OutputFormat;
 				const width = this.getNodeParameter('width', i, 0) as number;
 				const height = this.getNodeParameter('height', i, 0) as number;
+				const resizeMode = this.getNodeParameter('resizeMode', i, 'stretch') as ResizeMode;
 				const quality = this.getNodeParameter('quality', i, 80) as number;
 				const outputBinaryPropertyName = this.getNodeParameter(
 					'outputBinaryPropertyName',
@@ -270,7 +295,7 @@ export class FfmpegThumbnailer implements INodeType {
 				
 				const thumbnail = await runCommand(
 					'ffmpeg',
-					buildArgs(inputPath, timestamp, outputFormat, width, height, quality),
+					buildArgs(inputPath, timestamp, outputFormat, width, height, quality, resizeMode),
 				);
 				
 				const binary = await this.helpers.prepareBinaryData(thumbnail, fileName, mimeType);

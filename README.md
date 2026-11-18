@@ -94,7 +94,9 @@ Then install the folder as a community node in n8n, or copy `dist/` plus
    - `Percentage of Duration` – capture at a percentage of the video length
      (e.g. `25` = a quarter in). Requires `ffprobe`.
 4. Optionally set **Width** / **Height** (0 = keep the source dimension) and
-   **Quality** for JPEG.
+   **Quality** for JPEG. When both are set, **Resize Mode** controls how the
+   frame fits: `Fit` (inside the box), `Fill` (cover + crop), or `Stretch`
+   (exact size, ignoring aspect ratio).
 5. The thumbnail is written to the **Output Binary Property** (default `thumbnail`).
 
 ## Output
@@ -129,6 +131,7 @@ Then install the folder as a community node in n8n, or copy `dist/` plus
 | Timestamp Value | Seconds, or percentage 0-100 |
 | Output Format | `JPEG` or `PNG` |
 | Width / Height | Output size in pixels; 0 keeps the source dimension |
+| Resize Mode | `Fit`, `Fill`, or `Stretch` when both dimensions are set (default `Stretch`) |
 | Quality | JPEG quality 1-100 (higher is better) |
 | Output Binary Property | Where the thumbnail is written (default `thumbnail`) |
 | Output File Name | Base name without extension (default `thumbnail`) |
