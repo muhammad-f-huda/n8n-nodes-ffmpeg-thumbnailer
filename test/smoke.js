@@ -7,6 +7,23 @@ const path = require('path');
 
 const { FfmpegThumbnailer } = require('../dist/nodes/FfmpegThumbnailer/FfmpegThumbnailer.node.js');
 
+// Stub heic-decode so the HEIC path can be tested without committing a large photo.
+let heicDecodeCalls = 0;
+const heicModulePath = require.resolve('heic-decode');
+require.cache[heicModulePath] = {
+	id: heicModulePath,
+	filename: heicModulePath,
+	loaded: true,
+	exports: async () => {
+		heicDecodeCalls++;
+		const width = 16;
+		const height = 12;
+		return { width, height, data: new Uint8ClampedArray(width * height * 4).fill(255) };
+	},
+};
+const { FfmpegImage } = require('../dist/nodes/FfmpegImage/FfmpegImage.node.js');
+delete require.cache[heicModulePath];
+
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'thumb-test-'));
 const video = path.join(tmp, 'clip.mp4');
 // 6 second test video
@@ -36,6 +53,16 @@ function makeContext(params, inputData) {
 async function run(params, inputData, i = 0) {
 	const node = new FfmpegThumbnailer();
 	return (await node.execute.call(makeContext(params, inputData)))[0];
+}
+
+async function runImage(params, inputData) {
+	const node = new FfmpegImage();
+	return (await node.execute.call(makeContext(params, inputData)))[0];
+}
+
+function pngSize(buffer) {
+	assert.strictEqual(buffer.subarray(1, 4).toString(), 'PNG');
+	return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
 }
 
 async function main() {
@@ -119,9 +146,53 @@ async function main() {
 	assert.deepStrictEqual(leftover, [], `leftover temp dirs: ${leftover.join(', ')}`);
 	console.log('ok: temp workspaces cleaned up');
 
+	// 7. image resize: binary input, jpeg output
+	const image = path.join(tmp, 'picture.jpg');
+	execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc=size=64x48:rate=1:duration=1', '-frames:v', '1', image]);
+	const imageBase = { outputBinaryPropertyName: 'resized', outputFileName: 'resized' };
+	out = await runImage(
+		{ ...imageBase, sourceType: 'binaryData', binaryPropertyName: 'data', width: 20, height: 0, resizeMode: 'fit', outputFormat: 'jpeg', quality: 80 },
+		[{ json: {}, binary: { data: { fileName: 'picture.jpg', mimeType: 'image/jpeg', data: fs.readFileSync(image).toString('base64') } } }],
+	);
+	assert.strictEqual(out[0].json.fileName, 'resized.jpg');
+	assert.strictEqual(out[0].json.mimeType, 'image/jpeg');
+	const jpegOut = Buffer.from(out[0].binary.resized.data, 'base64');
+	assert.deepStrictEqual([...jpegOut.subarray(0, 2)], [0xff, 0xd8]);
+	console.log('ok: image resize from binary jpeg');
+
+	// 8. image resize: file path input, png output, height drives width
+	out = await runImage(
+		{ ...imageBase, sourceType: 'filePath', filePath: image, width: 0, height: 10, resizeMode: 'fit', outputFormat: 'png' },
+		[{ json: {} }],
+	);
+	assert.strictEqual(out[0].json.mimeType, 'image/png');
+	const pngSizeOut = pngSize(Buffer.from(out[0].binary.resized.data, 'base64'));
+	assert.strictEqual(pngSizeOut.height, 10);
+	assert.ok(pngSizeOut.width > 0);
+	console.log('ok: image resize from file path to png');
+
+	// 9. HEIC input is decoded to raw pixels before resizing; Auto -> PNG
+	out = await runImage(
+		{ ...imageBase, sourceType: 'binaryData', binaryPropertyName: 'data', width: 8, height: 0, resizeMode: 'fit', outputFormat: 'auto' },
+		[{ json: {}, binary: { data: { fileName: 'photo.heic', mimeType: 'image/heic', data: Buffer.from('0000ftypheic0000', 'ascii').toString('base64') } } }],
+	);
+	assert.strictEqual(heicDecodeCalls, 1, 'heic-decode was used');
+	assert.strictEqual(out[0].json.mimeType, 'image/png');
+	assert.deepStrictEqual(pngSize(Buffer.from(out[0].binary.resized.data, 'base64')), { width: 8, height: 6 });
+	console.log('ok: HEIC decoded then resized');
+
+	// 10. at least one dimension is required
+	await assert.rejects(
+		runImage(
+			{ ...imageBase, sourceType: 'filePath', filePath: image, width: 0, height: 0, resizeMode: 'fit', outputFormat: 'png' },
+			[{ json: {} }],
+		),
+		/At least one dimension/,
+	);
+	console.log('ok: image resize rejects zero dimensions');
+
 	fs.rmSync(tmp, { recursive: true, force: true });
-	console.log('\nall smoke tests passed');
-}
+	console.log('\nall smoke tests passed');}
 
 main().catch((error) => {
 	console.error(error);

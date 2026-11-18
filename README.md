@@ -1,9 +1,12 @@
 # n8n-nodes-ffmpeg-thumbnailer
 
-An n8n node that generates a thumbnail image from a video using **FFmpeg**.
+An n8n package with two nodes powered by **FFmpeg**:
 
-Takes a video (binary data from a previous node, or a file already on the n8n host)
-and outputs the captured frame as binary data, ready for further nodes.
+- **FFmpeg Thumbnailer** – capture a frame from a video.
+- **FFmpeg Image Resizer** – resize an image, including HEIC/HEIF input.
+
+Both take binary data from a previous node or a file already on the n8n host,
+and output binary data ready for further nodes.
 
 ## Requirements
 
@@ -130,25 +133,70 @@ Then install the folder as a community node in n8n, or copy `dist/` plus
 | Output Binary Property | Where the thumbnail is written (default `thumbnail`) |
 | Output File Name | Base name without extension (default `thumbnail`) |
 
+## FFmpeg Image Resizer
+
+Resizes an image. Most image formats (JPEG, PNG, WebP) are read directly by
+FFmpeg. HEIC/HEIF is decoded first by the bundled `heic-decode` dependency,
+because most FFmpeg builds (including static ones) have no HEIC decoder. No
+system `libheif` is needed.
+
+1. Add an **FFmpeg Image Resizer** node and choose **Binary Data** or **File Path**.
+2. Set **Width** and/or **Height** (at least one must be greater than zero).
+   The other dimension is derived from the source aspect ratio when left at 0.
+3. **Resize Mode** applies when both dimensions are set:
+   - `Fit` – scale down until the image fits inside the box (no cropping).
+   - `Fill` – scale up to cover the box, then crop the overflow.
+   - `Stretch` – force the exact width and height, ignoring aspect ratio.
+4. Choose **Output Format** (`Auto` keeps JPEG/PNG/WebP; HEIC becomes PNG) and
+   **Quality** for JPEG/WebP.
+5. The result is written to the **Output Binary Property** (default `data`).
+
+| Parameter | Description |
+| --- | --- |
+| Source | `Binary Data` or `File Path` |
+| Binary Property | Binary property holding the image (binary source only) |
+| File Path | Absolute path to the image (file path source only) |
+| Width / Height | Output size in pixels; at least one must be > 0 |
+| Resize Mode | `Fit`, `Fill`, or `Stretch` |
+| Output Format | `Auto`, `JPEG`, `PNG`, or `WebP` |
+| Quality | JPEG/WebP quality 1-100 (higher is better) |
+| Output Binary Property | Where the resized image is written (default `data`) |
+| Output File Name | Base name without extension (default `output`) |
+
+```json
+{
+  "json": {
+    "fileName": "output.png",
+    "fileSize": 7878,
+    "mimeType": "image/png",
+    "width": 64,
+    "height": 0,
+    "source": "IMG_4427.HEIC"
+  },
+  "binary": { "data": { "fileName": "output.png", "mimeType": "image/png", "data": "<buffer>" } }
+}
+```
+
 ## Errors
 
-The node throws a node error when something fails, for example:
+The nodes throw a node error when something fails, for example:
 
 - FFmpeg / ffprobe not installed or not on `PATH`
-- Video file not found or not readable
-- Unsupported or corrupt video
+- Video or image file not found or not readable
+- Unsupported or corrupt video / image (including undecodable HEIC)
 - Timestamp outside the video duration
-- Invalid percentage
+- Invalid percentage or image dimensions
 
 Enable **Continue On Fail** on the node to emit the error message as JSON instead
 of stopping the workflow.
 
 ## Cleanup
 
-Videos received as binary data are written to a temporary folder
-(`n8n-ffmpeg-thumbnailer-*` under the OS temp directory) and removed after the
-thumbnail is generated — also when generation fails. The thumbnail itself is
-piped straight out of FFmpeg, so no intermediate image file is left on disk.
+Videos received by the Thumbnailer as binary data are written to a temporary
+folder (`n8n-ffmpeg-thumbnailer-*` under the OS temp directory) and removed after
+the thumbnail is generated — also when generation fails. The Image Resizer pipes
+its input straight into FFmpeg, so it creates no temporary files. Output images
+are piped straight out of FFmpeg in both nodes.
 
 ## License
 

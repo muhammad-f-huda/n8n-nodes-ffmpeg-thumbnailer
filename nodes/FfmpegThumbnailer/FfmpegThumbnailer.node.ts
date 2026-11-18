@@ -1,4 +1,3 @@
-import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { extname, join } from 'path';
@@ -10,6 +9,8 @@ import {
 	INodeTypeDescription,
 	NodeOperationError,
 } from 'n8n-workflow';
+
+import { runCommand } from '../shared/ffmpeg';
 
 type TimestampMode = 'firstFrame' | 'specificSecond' | 'percentage';
 type OutputFormat = 'jpeg' | 'png';
@@ -27,44 +28,6 @@ const VIDEO_MIME_EXT: Record<string, string> = {
 	'video/x-msvideo': '.avi',
 	'video/mpeg': '.mpg',
 };
-
-/**
- * Runs a command and resolves with its stdout buffer. Rejects on a non-zero
- * exit code or when the binary is missing from PATH.
- */
-function runCommand(command: string, args: string[]): Promise<Buffer> {
-	return new Promise((resolve, reject) => {
-		const child = spawn(command, args);
-		const stdout: Buffer[] = [];
-		const stderr: Buffer[] = [];
-
-		child.stdout.on('data', (chunk: Buffer) => stdout.push(chunk));
-		child.stderr.on('data', (chunk: Buffer) => stderr.push(chunk));
-
-		child.on('error', (error: NodeJS.ErrnoException) => {
-			if (error.code === 'ENOENT') {
-				reject(
-					new Error(
-						`${command} was not found on PATH. Install FFmpeg (which includes ${command}) and make sure it is accessible to the n8n process.`,
-					),
-				);
-			} else {
-				reject(error);
-			}
-		});
-
-		child.on('close', (code, signal) => {
-			if (code === 0) {
-				resolve(Buffer.concat(stdout));
-			} else {
-				const message = Buffer.concat(stderr).toString().trim();
-				const status =
-					code === null ? `was killed by signal ${signal}` : `exited with code ${code}`;
-				reject(new Error(`${command} ${status}${message ? `: ${message}` : ''}`));
-			}
-		});
-	});
-}
 
 async function probeDuration(inputPath: string): Promise<number> {
 	const output = await runCommand('ffprobe', [
@@ -108,22 +71,22 @@ function buildArgs(
 	quality: number,
 ): string[] {
 	const args = ['-hide_banner', '-loglevel', 'error'];
-
+	
 	// Seeking before -i is fast and, since ffmpeg 2.1, frame accurate.
 	if (timestamp > 0) args.push('-ss', String(timestamp));
 	args.push('-i', inputPath, '-frames:v', '1', '-an');
-
+	
 	if (width > 0 || height > 0) {
 		args.push('-vf', `scale=${width > 0 ? width : -2}:${height > 0 ? height : -2}`);
 	}
-
+	
 	if (format === 'jpeg') {
 		args.push('-q:v', String(toQscale(quality)));
 	}
-
+	
 	// Writing to stdout avoids a second temp file on disk.
 	args.push('-f', 'image2pipe', '-vcodec', format === 'jpeg' ? 'mjpeg' : 'png', 'pipe:1');
-
+	
 	return args;
 }
 
@@ -247,24 +210,24 @@ export class FfmpegThumbnailer implements INodeType {
 			},
 		],
 	};
-
+	
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
-
+		
 		for (let i = 0; i < items.length; i++) {
 			let tempDir: string | null = null;
-
+			
 			try {
 				const sourceType = this.getNodeParameter('sourceType', i) as string;
 				let inputPath: string;
 				let sourceLabel: string;
-
+				
 				if (sourceType === 'binaryData') {
 					const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i) as string;
 					const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
 					const buffer = await this.helpers.getBinaryDataBuffer(i, binaryPropertyName);
-
+					
 					tempDir = await fs.mkdtemp(join(tmpdir(), 'n8n-ffmpeg-thumbnailer-'));
 					const extension = binaryData.fileName
 						? extname(binaryData.fileName)
@@ -276,7 +239,7 @@ export class FfmpegThumbnailer implements INodeType {
 					inputPath = this.getNodeParameter('filePath', i) as string;
 					sourceLabel = inputPath;
 				}
-
+				
 				const timestampMode = this.getNodeParameter('timestampMode', i) as TimestampMode;
 				const timestampValue = this.getNodeParameter('timestampValue', i, 0) as number;
 				const outputFormat = this.getNodeParameter('outputFormat', i) as OutputFormat;
@@ -288,7 +251,7 @@ export class FfmpegThumbnailer implements INodeType {
 					i,
 				) as string;
 				const outputFileName = this.getNodeParameter('outputFileName', i) as string;
-
+				
 				if (timestampMode === 'specificSecond' && timestampValue < 0) {
 					throw new NodeOperationError(this.getNode(), 'Timestamp must be zero or greater.', {
 						itemIndex: i,
@@ -299,19 +262,19 @@ export class FfmpegThumbnailer implements INodeType {
 						itemIndex: i,
 					});
 				}
-
+				
 				const timestamp = await resolveTimestamp(timestampMode, timestampValue, inputPath);
 				const mimeType = MIME_TYPES[outputFormat];
 				const extension = outputFormat === 'jpeg' ? 'jpg' : 'png';
 				const fileName = `${outputFileName}.${extension}`;
-
+				
 				const thumbnail = await runCommand(
 					'ffmpeg',
 					buildArgs(inputPath, timestamp, outputFormat, width, height, quality),
 				);
-
+				
 				const binary = await this.helpers.prepareBinaryData(thumbnail, fileName, mimeType);
-
+				
 				returnData.push({
 					json: {
 						fileName,
@@ -338,7 +301,7 @@ export class FfmpegThumbnailer implements INodeType {
 				}
 			}
 		}
-
+		
 		return [returnData];
 	}
 }

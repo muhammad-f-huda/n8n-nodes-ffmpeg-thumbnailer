@@ -1,17 +1,19 @@
 {
 	"name": "n8n-nodes-ffmpeg-thumbnailer",
 	"version": "0.1.0",
-	"description": "n8n node that generates a thumbnail image from a video using FFmpeg",
+	"description": "n8n nodes that generate video thumbnails and resize images (including HEIC) using FFmpeg",
 	"keywords": [
 		"n8n-community-node-package",
 		"ffmpeg",
 		"thumbnail",
-		"video"
+		"video",
+		"image",
+		"heic"
 	],
 	"license": "MIT",
 	"main": "dist/nodes/FfmpegThumbnailer/FfmpegThumbnailer.node.js",
 	"scripts": {
-		"build": "tsc && cp nodes/FfmpegThumbnailer/*.svg dist/nodes/FfmpegThumbnailer/",
+		"build": "tsc && cp nodes/FfmpegThumbnailer/*.svg dist/nodes/FfmpegThumbnailer/ && cp nodes/FfmpegImage/*.svg dist/nodes/FfmpegImage/",
 		"dev": "tsc --watch",
 		"test": "npm run build && node test/smoke.js"
 	},
@@ -22,10 +24,12 @@
 		"n8nNodesApiVersion": 1,
 		"credentials": [],
 		"nodes": [
-			"dist/nodes/FfmpegThumbnailer/FfmpegThumbnailer.node.js"
+			"dist/nodes/FfmpegThumbnailer/FfmpegThumbnailer.node.js",
+			"dist/nodes/FfmpegImage/FfmpegImage.node.js"
 		]
 	},
 	"dependencies": {
+		"heic-decode": "^2.1.0",
 		"n8n-workflow": "*"
 	},
 	"devDependencies": {
