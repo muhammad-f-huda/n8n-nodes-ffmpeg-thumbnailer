@@ -17,20 +17,8 @@ services:
           memory: 7818M
         reservations:
           memory: "335544320"
-    environment:
-      - DB_POSTGRESDB_DATABASE=n8n_database
-      - DB_POSTGRESDB_HOST=n8n-postgres
-      - DB_POSTGRESDB_PASSWORD=changeme
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_USER=n8n_user
-      - DB_TYPE=postgresdb
-      - EXECUTIONS_MODE=queue
-      - N8N_ENCRYPTION_KEY=replace-with-random-64-char
-      - N8N_SECURE_COOKIE=false
-      - NODES_EXCLUDE=[]
-      - QUEUE_BULL_REDIS_HOST=n8n-redis
-      - QUEUE_BULL_REDIS_PORT=6379
-      - TZ=Asia/Jakarta
+    env_file:
+      - .env
     hostname: n8n-main
     build:
       context: .
@@ -63,10 +51,8 @@ services:
       resources:
         limits:
           memory: 7818M
-    environment:
-      - POSTGRES_DB=n8n_database
-      - POSTGRES_PASSWORD=changeme
-      - POSTGRES_USER=n8n_user
+    env_file:
+      - .env
     hostname: n8n-postgres
     healthcheck:
       test:
@@ -144,19 +130,8 @@ services:
       resources:
         limits:
           memory: 7818M
-    environment:
-      - DB_POSTGRESDB_DATABASE=n8n_database
-      - DB_POSTGRESDB_HOST=n8n-postgres
-      - DB_POSTGRESDB_PASSWORD=changeme
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_USER=n8n_user
-      - DB_TYPE=postgresdb
-      - EXECUTIONS_MODE=queue
-      - N8N_ENCRYPTION_KEY=replace-with-random-64-char
-      - NODES_EXCLUDE=[]
-      - QUEUE_BULL_REDIS_HOST=n8n-redis
-      - QUEUE_BULL_REDIS_PORT=6379
-      - TZ=Asia/Jakarta
+    env_file:
+      - .env
     hostname: n8n-worker
     build:
       context: .
